@@ -2,6 +2,7 @@ module Library where
 
 import Control.Category ((>>>))
 import Control.Monad (forM_)
+import qualified Data.Char as Char
 import Data.Function ((&))
 import qualified Data.List as List
 import Prelude
@@ -30,7 +31,8 @@ makeHeadings (l : ls) =
         ls
           & takeWhile (\l' -> depthOfHeading l' > depth)
           & makeHeadings
-   in [Heading {name, depth, subHeadings}] <> makeHeadings (drop (length subHeadings) ls)
+      remaining = drop (countSubHeadings subHeadings) ls
+   in [Heading {name, depth, subHeadings}] <> makeHeadings remaining
 
 depthOfHeading :: String -> Int
 depthOfHeading = takeWhile (== '#') >>> length
@@ -40,5 +42,17 @@ printTableOfContents headings =
   forM_ headings $ \Heading {name, depth, subHeadings} -> do
     let indentation = List.repeat ' ' & take indentationDepth
         indentationDepth = pred depth * 2
-    putStrLn $ mconcat [indentation, "- ", name]
+        anchor = name & filter (`notElem` symbols) & map sanitizeCharacter & lowercase
+        sanitizeCharacter ' ' = '-'
+        sanitizeCharacter c = c
+        lowercase = map Char.toLower
+        link = mconcat ["[", name, "]", "(#", anchor, ")"]
+    putStrLn $ mconcat [indentation, "- ", link]
     printTableOfContents subHeadings
+
+symbols :: String
+symbols = "[]/();=`"
+
+countSubHeadings :: [Heading] -> Int
+countSubHeadings =
+  foldr (\Heading {subHeadings} accumulator -> 1 + countSubHeadings subHeadings + accumulator) 0
