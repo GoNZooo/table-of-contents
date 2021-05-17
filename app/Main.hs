@@ -20,4 +20,14 @@ main = do
 
 parseOptions :: Parser Library.Options
 parseOptions =
-  Library.Options <$> argument str (metavar "FILEPATH")
+  let printCommand =
+        command "print" (info parsePrintCommand $ progDesc "Print table of contents for a Markdown file")
+      injectCommand =
+        command "inject" (info parseInjectCommand $ progDesc "Inject table of contents into a Markdown file")
+   in Library.Options <$> subparser (printCommand <> injectCommand)
+
+parsePrintCommand :: Parser Library.Command
+parsePrintCommand = Library.PrintToC <$> argument str (metavar "FILEPATH")
+
+parseInjectCommand :: Parser Library.Command
+parseInjectCommand = Library.InjectToC <$> argument str (metavar "FILEPATH")

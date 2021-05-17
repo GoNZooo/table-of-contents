@@ -1,13 +1,14 @@
 module Library where
 
 import Control.Category ((>>>))
-import Control.Monad (forM_)
+import Control.Monad (forM_, join)
 import qualified Data.Char as Char
 import Data.Function ((&))
 import qualified Data.List as List
-import Prelude
+import System.IO.Strict (readFile)
+import Prelude hiding (readFile)
 
-newtype Options = Options {source :: FilePath}
+newtype Options = Options {command :: Command}
 
 data Heading = Heading
   { name :: String,
@@ -16,11 +17,35 @@ data Heading = Heading
   }
   deriving (Eq, Show)
 
+data Command
+  = PrintToC FilePath
+  | InjectToC FilePath
+
 runMain :: Options -> IO ()
-runMain Options {source} = do
+runMain Options {command = PrintToC source} = do
   linesWithHeading <- (lines >>> filter (List.isPrefixOf "#")) <$> readFile source
-  let headings = makeHeadings linesWithHeading
-  printTableOfContents headings
+  let headingLines = linesWithHeading & makeHeadings & headingsToLines
+  forM_ headingLines putStrLn
+runMain Options {command = InjectToC source} = injectTableOfContents source
+
+injectTableOfContents :: FilePath -> IO ()
+injectTableOfContents source = do
+  fileContents <- readFile source
+  let fileLines = lines fileContents
+      linesWithHeading = filter (List.isPrefixOf "#") fileLines
+      headingLines = linesWithHeading & makeHeadings & headingsToLines
+      (prelude, withoutPrelude) = List.splitAt 2 fileLines
+      withoutToC = dropToCLines withoutPrelude
+      dropToCLines ls
+        | hasTableOfContents ls = dropWhile (trimLeft >>> (List.isPrefixOf "- ")) ls
+        | otherwise = insertPadding ls
+      trimLeft = List.dropWhile (== ' ')
+      insertPadding = ([""] <>) >>> id
+      newFileContents = unlines $ join [prelude, headingLines, withoutToC]
+  writeFile source newFileContents
+
+hasTableOfContents :: [String] -> Bool
+hasTableOfContents = head >>> ("- " `List.isPrefixOf`)
 
 makeHeadings :: [String] -> [Heading]
 makeHeadings [] = []
@@ -37,18 +62,19 @@ makeHeadings (l : ls) =
 depthOfHeading :: String -> Int
 depthOfHeading = takeWhile (== '#') >>> length
 
-printTableOfContents :: [Heading] -> IO ()
-printTableOfContents headings =
-  forM_ headings $ \Heading {name, depth, subHeadings} -> do
-    let indentation = List.repeat ' ' & take indentationDepth
-        indentationDepth = pred depth * 2
-        anchor = name & filter (`notElem` symbols) & map sanitizeCharacter & lowercase
-        sanitizeCharacter ' ' = '-'
-        sanitizeCharacter c = c
-        lowercase = map Char.toLower
-        link = mconcat ["[", name, "]", "(#", anchor, ")"]
-    putStrLn $ mconcat [indentation, "- ", link]
-    printTableOfContents subHeadings
+headingsToLines :: [Heading] -> [String]
+headingsToLines = foldr (headingToLines >>> (<>)) []
+
+headingToLines :: Heading -> [String]
+headingToLines Heading {name, depth, subHeadings} =
+  let indentation = List.repeat ' ' & take indentationDepth
+      indentationDepth = pred depth * 2
+      anchor = name & filter (`notElem` symbols) & map sanitizeCharacter & lowercase
+      sanitizeCharacter ' ' = '-'
+      sanitizeCharacter c = c
+      lowercase = map Char.toLower
+      link = mconcat ["[", name, "]", "(#", anchor, ")"]
+   in mconcat [indentation, "- ", link] : headingsToLines subHeadings
 
 symbols :: String
 symbols = "[]/();=`\"'.!,?:*&<>|#^$@\\%"
