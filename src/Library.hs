@@ -51,7 +51,7 @@ printTableOfContents headings =
     printTableOfContents subHeadings
 
 symbols :: String
-symbols = "[]/();=`\"'.!,?"
+symbols = "[]/();=`\"'.!,?:"
 
 countSubHeadings :: [Heading] -> Int
 countSubHeadings =
