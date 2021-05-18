@@ -1,5 +1,6 @@
 module Main where
 
+import Library (Command (..), WatchCommand (..))
 import qualified Library
 import Options.Applicative
 import Prelude
@@ -24,10 +25,24 @@ parseOptions =
         command "print" (info parsePrintCommand $ progDesc "Print table of contents for a Markdown file")
       injectCommand =
         command "inject" (info parseInjectCommand $ progDesc "Inject table of contents into a Markdown file")
-   in Library.Options <$> subparser (printCommand <> injectCommand)
+      watchCommand =
+        command
+          "watch"
+          ( info parseWatchCommand $
+              progDesc "Watch a path for changes and execute a command on each file change"
+          )
+   in Library.Options <$> subparser (watchCommand <> printCommand <> injectCommand)
 
-parsePrintCommand :: Parser Library.Command
-parsePrintCommand = Library.PrintToC <$> argument str (metavar "FILEPATH")
+parseWatchCommand :: Parser Command
+parseWatchCommand =
+  let printCommand =
+        command "print" (info (pure WatchPrint) $ progDesc "Watch a directory and print ToC on updates")
+      injectCommand =
+        command "inject" (info (pure WatchInject) $ progDesc "Watch a directory and inject ToC on updates")
+   in Watch <$> subparser (printCommand <> injectCommand) <*> argument str (metavar "FILEPATH")
 
-parseInjectCommand :: Parser Library.Command
-parseInjectCommand = Library.InjectToC <$> argument str (metavar "FILEPATH")
+parsePrintCommand :: Parser Command
+parsePrintCommand = PrintToC <$> argument str (metavar "FILEPATH")
+
+parseInjectCommand :: Parser Command
+parseInjectCommand = InjectToC <$> argument str (metavar "FILEPATH")
