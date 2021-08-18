@@ -7,6 +7,7 @@ import Control.Monad (forM_, forever, join, unless)
 import qualified Data.Char as Char
 import Data.Function ((&))
 import qualified Data.List as List
+import Data.Maybe (listToMaybe)
 import qualified System.FSNotify as Notify
 import System.IO.Strict (readFile)
 import Prelude hiding (readFile)
@@ -95,7 +96,7 @@ injectTableOfContents source = do
   writeFile source newFileContents
 
 hasTableOfContents :: [String] -> Bool
-hasTableOfContents = head >>> ("- " `List.isPrefixOf`)
+hasTableOfContents = listToMaybe >>> maybe False ("- " `List.isPrefixOf`)
 
 makeHeadings :: [String] -> [Heading]
 makeHeadings [] = []
