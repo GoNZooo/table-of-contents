@@ -88,7 +88,7 @@ injectTableOfContents source = do
       (prelude, withoutPrelude) = List.splitAt 2 fileLines
       withoutToC = dropToCLines withoutPrelude
       dropToCLines ls
-        | hasTableOfContents ls = dropWhile (trimLeft >>> (List.isPrefixOf "- ")) ls
+        | hasTableOfContents ls = dropWhile (trimLeft >>> List.isPrefixOf "- ") ls
         | otherwise = insertPadding ls
       trimLeft = List.dropWhile (== ' ')
       insertPadding = ([""] <>) >>> id
